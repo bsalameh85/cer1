@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar">
 <head>
@@ -190,7 +191,7 @@
           <th>اسم الدورة</th>
           <th>تاريخ البداية</th>
           <th>تاريخ النهاية</th>
-          <th>تعديل</th>
+          <th>الإجراءات</th>
         </tr>
       </thead>
       <tbody>
@@ -219,16 +220,6 @@
   let participantsData = [];
   let selectedCourseIndex = null;
 
-  // استرجاع الدورات من LocalStorage عند تحميل الصفحة
-  window.onload = function() {
-    const savedCourses = localStorage.getItem('courses');
-    if (savedCourses) {
-      courses = JSON.parse(savedCourses);
-      renderCoursesTable();
-      populateCourseSelect();
-    }
-  };
-
   function showTab(tabId, event) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
@@ -255,9 +246,6 @@
       courses.push({ name, start, end });
       alert('تم حفظ بيانات الدورة بنجاح!');
     }
-    // حفظ الدورات في LocalStorage
-    localStorage.setItem('courses', JSON.stringify(courses));
-
     renderCoursesTable();
     populateCourseSelect();
     clearCourseInputs();
@@ -272,7 +260,19 @@
         <td>${course.name}</td>
         <td>${formatDate(course.start)}</td>
         <td>${formatDate(course.end)}</td>
-        <td><button class="edit-btn" onclick="editCourse(${index})">تعديل</button></td>
+        <td>
+          <button class="edit-btn" onclick="editCourse(${index})">تعديل</button>
+          <button class="delete-btn" onclick="deleteCourse(${index})" style="
+            background-color: #dc3545; 
+            color: white; 
+            border: none; 
+            padding: 6px 14px; 
+            border-radius: 6px; 
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 6px;
+          ">حذف</button>
+        </td>
       `;
       tbody.appendChild(tr);
     });
@@ -283,6 +283,16 @@
     document.getElementById('courseName').value = course.name;
     document.getElementById('startDate').value = course.start;
     document.getElementById('endDate').value = course.end;
+  }
+
+  function deleteCourse(index) {
+    if (confirm('هل أنت متأكد من حذف هذه الدورة؟')) {
+      courses.splice(index, 1);
+      renderCoursesTable();
+      populateCourseSelect();
+      clearCourseInputs();
+      alert('تم حذف الدورة بنجاح!');
+    }
   }
 
   function clearCourseInputs() {
@@ -320,105 +330,125 @@
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, {type:'array'});
       const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, {header:1});
-      processExcelData(jsonData);
-    };
+      const sheet = workbook.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json(sheet, {header:1});
+      // نتوقع أن العمود الأول فيه أسماء المشاركين
+      participantsData = [];
+      for(let i=1; i<json.length; i++) {
+        const row = json[i];
+        if(row.length > 0 && row[0]) {
+          participantsData.push(row[0]);
+        }
+      }
+      if (participantsData.length === 0) {
+        alert('الملف لا يحتوي على أسماء صحيحة في العمود الأول');
+        return;
+      }
+      alert(`تم تحميل ${participantsData.length} اسم من الملف`);
+      generateCertificates();
+      // الذهاب لتبويب عرض الشهادات
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById('exportTab').classList.add('active');
+      document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+      document.querySelector('.tabs button:nth-child(3)').classList.add('active');
+    }
     reader.readAsArrayBuffer(file);
   });
 
-  function processExcelData(data) {
-    // نتوقع أن الصف الأول رؤوس الأعمدة أو أسماء
-    participantsData = [];
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row.length === 0) continue;
-      // افترض أن العمود الأول هو اسم المشترك فقط (يمكنك تعديل حسب الملف)
-      const name = row[0];
-      if (name) {
-        participantsData.push(name);
-      }
-    }
-    generateCertificates();
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('ar-EG', {year:'numeric', month:'long', day:'numeric'});
   }
 
   function generateCertificates() {
-    const container = document.getElementById('certContainer');
-    container.innerHTML = '';
+    const certContainer = document.getElementById('certContainer');
+    certContainer.innerHTML = '';
 
-    if (selectedCourseIndex === null || !courses[selectedCourseIndex]) {
-      alert('يرجى اختيار دورة صحيحة');
+    if (selectedCourseIndex === null || selectedCourseIndex === '') {
+      alert('يرجى اختيار الدورة أولاً');
       return;
     }
+
     const course = courses[selectedCourseIndex];
-    const startFormatted = formatDate(course.start);
-    const endFormatted = formatDate(course.end);
 
     participantsData.forEach(name => {
-      const cert = document.createElement('div');
-      cert.className = 'certificate';
-
-      cert.innerHTML = `
-        <h1>شهادة إتمام دورة</h1>
+      const certDiv = document.createElement('div');
+      certDiv.classList.add('certificate');
+      certDiv.innerHTML = `
+        <h1>شهادة حضور</h1>
+        <p>تشهد إدارة الدورة بأن</p>
+        <h2>${name}</h2>
+        <p>قد حضر الدورة التدريبية:</p>
         <h2>${course.name}</h2>
-        <p>تشهد هذه الشهادة بأن</p>
-        <h2 style="color: #007bff;">${name}</h2>
-        <p>قد أتم بنجاح دورة ${course.name} التي عقدت من ${startFormatted} إلى ${endFormatted}</p>
+        <p>خلال الفترة من ${formatDate(course.start)} إلى ${formatDate(course.end)}</p>
         <div class="footer">
           <div>التاريخ: ${formatDate(new Date().toISOString().split('T')[0])}</div>
-          <div>إدارة التدريب</div>
+          <div>التوقيع: ________________</div>
         </div>
       `;
-      container.appendChild(cert);
+      certContainer.appendChild(certDiv);
     });
-
-    showTab('exportTab', document.querySelector('.tabs button:last-child'));
   }
 
-  function formatDate(dateStr) {
-    const d = new Date(dateStr);
-    if (isNaN(d)) return dateStr;
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return d.toLocaleDateString('ar-EG', options);
-  }
-
-  function exportCertificatesZip() {
+  async function exportCertificatesZip() {
     if (participantsData.length === 0) {
-      alert('لا توجد شهادات لتصديرها، يرجى رفع ملف الأسماء أولاً');
+      alert('لا توجد شهادات لتصديرها. يرجى رفع ملف الأسماء أولاً.');
       return;
     }
-    if (selectedCourseIndex === null || !courses[selectedCourseIndex]) {
-      alert('يرجى اختيار دورة صحيحة');
+    if (selectedCourseIndex === null || selectedCourseIndex === '') {
+      alert('يرجى اختيار الدورة أولاً');
       return;
     }
     const course = courses[selectedCourseIndex];
     const zip = new JSZip();
 
-    // نص الشهادة للملف النصي
-    const startFormatted = formatDate(course.start);
-    const endFormatted = formatDate(course.end);
-    const todayFormatted = formatDate(new Date().toISOString().split('T')[0]);
+    for (const name of participantsData) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 800 * 2;
+      canvas.height = 500 * 2;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(2, 2);
 
-    participantsData.forEach(name => {
-      const content = `
-شهادة إتمام دورة
-الدورة: ${course.name}
+      // خلفية بيضاء مع حد أسود
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, 800, 500);
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(0, 0, 800, 500);
 
-تشهد هذه الشهادة بأن ${name}
-قد أتم بنجاح دورة ${course.name} التي عقدت من ${startFormatted} إلى ${endFormatted}.
+      ctx.fillStyle = '#000';
+      ctx.textAlign = 'center';
 
-التاريخ: ${todayFormatted}
-إدارة التدريب
-      `;
-      // احفظ كل شهادة كملف txt باسم الشخص
-      const filename = `${name.replace(/\s+/g, '_')}_certificate.txt`;
-      zip.file(filename, content);
-    });
+      ctx.font = '28px "Segoe UI"';
+      ctx.fillText('شهادة حضور', 400, 60);
 
-    zip.generateAsync({type:"blob"})
-      .then(function(content) {
-        saveAs(content, `${course.name}_Certificates.zip`);
-      });
+      ctx.font = '18px "Segoe UI"';
+      ctx.fillText('تشهد إدارة الدورة بأن', 400, 120);
+
+      ctx.font = '24px "Segoe UI"';
+      ctx.fillText(name, 400, 180);
+
+      ctx.font = '18px "Segoe UI"';
+      ctx.fillText('قد حضر الدورة التدريبية:', 400, 240);
+
+      ctx.font = '24px "Segoe UI"';
+      ctx.fillText(course.name, 400, 300);
+
+      ctx.font = '18px "Segoe UI"';
+      ctx.fillText(`خلال الفترة من ${formatDate(course.start)} إلى ${formatDate(course.end)}`, 400, 360);
+
+      ctx.font = '16px "Segoe UI"';
+      ctx.fillText(`التاريخ: ${formatDate(new Date().toISOString().split('T')[0])}`, 150, 460);
+      ctx.fillText('التوقيع: ________________', 650, 460);
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const imgData = dataUrl.split(',')[1];
+      zip.file(`${name}.png`, imgData, {base64: true});
+    }
+
+    const content = await zip.generateAsync({type:"blob"});
+    saveAs(content, `${course.name}_certificates.zip`);
   }
 </script>
 
