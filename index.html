@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar">
 <head>
@@ -165,6 +164,10 @@
         top: 0;
       }
     }
+    /* توسيط العنوان */
+    h1 {
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -220,6 +223,20 @@
   let participantsData = [];
   let selectedCourseIndex = null;
 
+  // تحميل الدورات من localStorage عند تحميل الصفحة
+  window.onload = function() {
+    const savedCourses = localStorage.getItem('courses');
+    if (savedCourses) {
+      courses = JSON.parse(savedCourses);
+      renderCoursesTable();
+      populateCourseSelect();
+    }
+  };
+
+  function saveCoursesToLocalStorage() {
+    localStorage.setItem('courses', JSON.stringify(courses));
+  }
+
   function showTab(tabId, event) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
@@ -246,6 +263,7 @@
       courses.push({ name, start, end });
       alert('تم حفظ بيانات الدورة بنجاح!');
     }
+    saveCoursesToLocalStorage(); // حفظ الدورات في LocalStorage
     renderCoursesTable();
     populateCourseSelect();
     clearCourseInputs();
@@ -288,6 +306,7 @@
   function deleteCourse(index) {
     if (confirm('هل أنت متأكد من حذف هذه الدورة؟')) {
       courses.splice(index, 1);
+      saveCoursesToLocalStorage(); // حفظ بعد الحذف
       renderCoursesTable();
       populateCourseSelect();
       clearCourseInputs();
@@ -304,153 +323,148 @@
   function populateCourseSelect() {
     const select = document.getElementById('courseSelect');
     select.innerHTML = '<option value="">-- اختر الدورة --</option>';
-    courses.forEach((course, idx) => {
+    courses.forEach((course, index) => {
       const option = document.createElement('option');
-      option.value = idx;
+      option.value = index;
       option.textContent = course.name;
       select.appendChild(option);
     });
   }
 
-  document.getElementById('excelFile').addEventListener('change', function(event){
-    const file = event.target.files[0];
+  function formatDate(dateString) {
+    const d = new Date(dateString);
+    if (isNaN(d)) return '';
+    return d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  // قراءة ملف Excel ورفع الأسماء
+  document.getElementById('excelFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
     if (!file) return;
-
-    const courseSelect = document.getElementById('courseSelect');
-    selectedCourseIndex = courseSelect.value;
-
-    if (selectedCourseIndex === '') {
-      alert('يرجى اختيار الدورة التي تريد طباعة شهاداتها أولاً');
-      this.value = ''; // إعادة تعيين الملف المرفوع
-      return;
-    }
-
     const reader = new FileReader();
-    reader.onload = function(e){
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, {type:'array'});
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const json = XLSX.utils.sheet_to_json(sheet, {header:1});
-      // نتوقع أن العمود الأول فيه أسماء المشاركين
-      participantsData = [];
-      for(let i=1; i<json.length; i++) {
-        const row = json[i];
-        if(row.length > 0 && row[0]) {
-          participantsData.push(row[0]);
-        }
-      }
+    reader.onload = function(event) {
+      const data = new Uint8Array(event.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      participantsData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+      // participantsData شكلها مصفوفة مصفوفات (صفوف)
       if (participantsData.length === 0) {
-        alert('الملف لا يحتوي على أسماء صحيحة في العمود الأول');
+        alert('ملف الأسماء فارغ');
         return;
       }
-      alert(`تم تحميل ${participantsData.length} اسم من الملف`);
-      generateCertificates();
-      // الذهاب لتبويب عرض الشهادات
+      alert('تم رفع ملف الأسماء بنجاح!');
+      // اعرض الشهادات فقط إذا تم اختيار دورة
+      const select = document.getElementById('courseSelect');
+      if (select.value === '') {
+        alert('يرجى اختيار دورة قبل عرض الشهادات');
+        return;
+      }
+      selectedCourseIndex = parseInt(select.value);
+      renderCertificates();
+      // انتقل إلى تبويب تصدير الشهادات تلقائياً
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
       document.getElementById('exportTab').classList.add('active');
       document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-      document.querySelector('.tabs button:nth-child(3)').classList.add('active');
-    }
+      document.querySelector('.tabs button[onclick*="exportTab"]').classList.add('active');
+    };
     reader.readAsArrayBuffer(file);
   });
 
-  function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('ar-EG', {year:'numeric', month:'long', day:'numeric'});
-  }
-
-  function generateCertificates() {
-    const certContainer = document.getElementById('certContainer');
-    certContainer.innerHTML = '';
-
-    if (selectedCourseIndex === null || selectedCourseIndex === '') {
-      alert('يرجى اختيار الدورة أولاً');
+  function renderCertificates() {
+    if (selectedCourseIndex === null || !courses[selectedCourseIndex]) {
+      alert('يرجى اختيار دورة صحيحة');
       return;
     }
-
+    if (participantsData.length === 0) {
+      alert('لا يوجد بيانات لعرض الشهادات');
+      return;
+    }
     const course = courses[selectedCourseIndex];
+    const container = document.getElementById('certContainer');
+    container.innerHTML = '';
 
-    participantsData.forEach(name => {
-      const certDiv = document.createElement('div');
-      certDiv.classList.add('certificate');
-      certDiv.innerHTML = `
-        <h1>شهادة حضور</h1>
-        <p>تشهد إدارة الدورة بأن</p>
-        <h2>${name}</h2>
-        <p>قد حضر الدورة التدريبية:</p>
+    // افترض الصف الأول هو رؤوس الأعمدة، وابحث عن عمود الاسم (اسم الطالب)
+    const headers = participantsData[0].map(h => h.toString().toLowerCase());
+    let nameColIndex = headers.findIndex(h => h.includes('الاسم') || h.includes('name'));
+    if (nameColIndex === -1) nameColIndex = 0; // لو لم نجد عمود الاسم، خذ العمود الأول
+
+    for (let i = 1; i < participantsData.length; i++) {
+      const row = participantsData[i];
+      const participantName = row[nameColIndex];
+      if (!participantName) continue;
+
+      const cert = document.createElement('div');
+      cert.classList.add('certificate');
+      cert.innerHTML = `
+        <h1>شهادة مشاركة</h1>
+        <h2>${participantName}</h2>
+        <p>تشارك في دورة:</p>
         <h2>${course.name}</h2>
-        <p>خلال الفترة من ${formatDate(course.start)} إلى ${formatDate(course.end)}</p>
+        <p>الفترة من ${formatDate(course.start)} إلى ${formatDate(course.end)}</p>
         <div class="footer">
-          <div>التاريخ: ${formatDate(new Date().toISOString().split('T')[0])}</div>
-          <div>التوقيع: ________________</div>
+          <span>التاريخ: ${formatDate(new Date().toISOString())}</span>
+          <span>نظام إصدار الشهادات</span>
         </div>
       `;
-      certContainer.appendChild(certDiv);
-    });
+      container.appendChild(cert);
+    }
   }
 
+  // تصدير الشهادات كملف ZIP يحتوي صور PDF لكل شهادة
   async function exportCertificatesZip() {
-    if (participantsData.length === 0) {
-      alert('لا توجد شهادات لتصديرها. يرجى رفع ملف الأسماء أولاً.');
-      return;
-    }
-    if (selectedCourseIndex === null || selectedCourseIndex === '') {
-      alert('يرجى اختيار الدورة أولاً');
+    if (selectedCourseIndex === null) {
+      alert('يرجى رفع ملف الأسماء واختيار الدورة أولاً');
       return;
     }
     const course = courses[selectedCourseIndex];
-    const zip = new JSZip();
-
-    for (const name of participantsData) {
-      const canvas = document.createElement('canvas');
-      canvas.width = 800 * 2;
-      canvas.height = 500 * 2;
-      const ctx = canvas.getContext('2d');
-      ctx.scale(2, 2);
-
-      // خلفية بيضاء مع حد أسود
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, 800, 500);
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(0, 0, 800, 500);
-
-      ctx.fillStyle = '#000';
-      ctx.textAlign = 'center';
-
-      ctx.font = '28px "Segoe UI"';
-      ctx.fillText('شهادة حضور', 400, 60);
-
-      ctx.font = '18px "Segoe UI"';
-      ctx.fillText('تشهد إدارة الدورة بأن', 400, 120);
-
-      ctx.font = '24px "Segoe UI"';
-      ctx.fillText(name, 400, 180);
-
-      ctx.font = '18px "Segoe UI"';
-      ctx.fillText('قد حضر الدورة التدريبية:', 400, 240);
-
-      ctx.font = '24px "Segoe UI"';
-      ctx.fillText(course.name, 400, 300);
-
-      ctx.font = '18px "Segoe UI"';
-      ctx.fillText(`خلال الفترة من ${formatDate(course.start)} إلى ${formatDate(course.end)}`, 400, 360);
-
-      ctx.font = '16px "Segoe UI"';
-      ctx.fillText(`التاريخ: ${formatDate(new Date().toISOString().split('T')[0])}`, 150, 460);
-      ctx.fillText('التوقيع: ________________', 650, 460);
-
-      const dataUrl = canvas.toDataURL('image/png');
-      const imgData = dataUrl.split(',')[1];
-      zip.file(`${name}.png`, imgData, {base64: true});
+    if (!course) {
+      alert('الدورة المختارة غير صحيحة');
+      return;
+    }
+    if (participantsData.length === 0) {
+      alert('لا يوجد أسماء لتصدير الشهادات');
+      return;
     }
 
-    const content = await zip.generateAsync({type:"blob"});
-    saveAs(content, `${course.name}_certificates.zip`);
+    const zip = new JSZip();
+    const container = document.getElementById('certContainer');
+    if (!container || container.children.length === 0) {
+      alert('يرجى عرض الشهادات أولاً قبل التصدير');
+      return;
+    }
+
+    // سنحول كل شهادة HTML إلى صورة باستخدام html2canvas (نحتاج تحميل مكتبة)
+    if (typeof html2canvas === 'undefined') {
+      alert('يرجى إضافة مكتبة html2canvas لتصدير الشهادات');
+      return;
+    }
+
+    for (let i = 0; i < container.children.length; i++) {
+      const cert = container.children[i];
+      const participantName = cert.querySelector('h2').textContent;
+
+      // توليد صورة من الشهادة
+      try {
+        const canvas = await html2canvas(cert);
+        const dataURL = canvas.toDataURL('image/png');
+        // تحويل dataURL إلى blob
+        const blob = await (await fetch(dataURL)).blob();
+
+        zip.file(`${participantName}_certificate.png`, blob);
+      } catch (e) {
+        alert('حدث خطأ أثناء التصدير: ' + e.message);
+        return;
+      }
+    }
+    zip.generateAsync({type: 'blob'}).then(function(content) {
+      saveAs(content, `Certificates_${course.name}.zip`);
+    });
   }
 </script>
+
+<!-- مكتبة html2canvas لتصدير الشهادات كصور -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 </body>
 </html>
