@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>نظام إصدار الشهادات</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      direction: rtl;
+      padding: 40px;
+      background-color: #f4f4f4;
+    }
+    .tabs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 30px;
+      flex-wrap: nowrap; /* خليها افقي */
+    }
+    .tabs button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 25px;
+      font-size: 16px;
+      border-radius: 10px 10px 0 0;
+      cursor: pointer;
+      flex: 1; /* توزيع متساوي */
+      max-width: 200px;
+      white-space: nowrap;
+      transition: background-color 0.3s;
+    }
+    .tabs button.active {
+      background: #0056b3;
+    }
+    .tab-content {
+      display: none;
+      background: #fff;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      max-width: 800px;
+      margin: auto;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    input[type="file"], button.submit, button.export-btn {
+      margin: 20px 0;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 8px;
+      border: none;
+    }
+    button.submit {
+      background: #28a745;
+      color: white;
+    }
+    button.export-btn {
+      background: #007bff;
+      color: white;
+    }
+    .certificates {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .certificate {
+      width: 800px;
+      height: 500px;
+      border: 4px solid #333;
+      background: white;
+      margin: 20px 0;
+      padding: 30px;
+      text-align: center;
+      position: relative;
+      box-sizing: border-box;
+    }
+    .certificate h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    .certificate h2 {
+      font-size: 24px;
+      margin: 10px 0;
+    }
+    .certificate p {
+      font-size: 18px;
+      margin: 5px 0;
+    }
+    .footer {
+      position: absolute;
+      bottom: 20px;
+      left: 40px;
+      right: 40px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    table, th, td {
+      border: 2px solid #007bff;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+      font-size: 16px;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+    button.edit-btn {
+      background-color: #ffc107;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #212529;
+      font-weight: bold;
+      transition: background-color 0.3s;
+    }
+    button.edit-btn:hover {
+      background-color: #e0a800;
+    }
+    /* حدود واضحة للاختيار في رفع الأسماء */
+    #courseSelect {
+      width: 100%;
+      max-width: 400px;
+      padding: 10px 15px;
+      font-size: 16px;
+      border: 2px solid #007bff;
+      border-radius: 8px;
+      outline: none;
+      box-sizing: border-box;
+      margin-bottom: 20px;
+      appearance: none;
+      background-color: #fff;
+      cursor: pointer;
+    }
+    #uploadTab label[for="courseSelect"] {
+      font-weight: bold;
+      margin-bottom: 8px;
+      display: block;
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      .certificates, .certificates * {
+        visibility: visible;
+      }
+      .certificates {
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📄 نظام إصدار الشهادات</h1>
+
+  <div class="tabs">
+    <button class="active" onclick="showTab('courseTab', event)">➕ إضافة بيانات الدورة</button>
+    <button onclick="showTab('uploadTab', event)">📥 رفع ملف الأسماء</button>
+    <button onclick="showTab('exportTab', event)">📤 تصدير الشهادات</button>
+  </div>
+
+  <div id="courseTab" class="tab-content active">
+    <h2>إضافة بيانات الدورة</h2>
+    <input type="text" id="courseName" placeholder="اسم الدورة" />
+    <input type="date" id="startDate" />
+    <input type="date" id="endDate" />
+    <button class="submit" onclick="saveCourse()">حفظ بيانات الدورة</button>
+
+    <h2>الدورات المضافة</h2>
+    <table id="coursesTable">
+      <thead>
+        <tr>
+          <th>اسم الدورة</th>
+          <th>تاريخ البداية</th>
+          <th>تاريخ النهاية</th>
+          <th>تعديل</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- هنا سيتم إضافة الدورات -->
+      </tbody>
+    </table>
+  </div>
+
+  <div id="uploadTab" class="tab-content">
+    <h2>رفع ملف أسماء المشتركين</h2>
+    <label for="courseSelect">اختر الدورة التي تريد طباعة شهاداتها:</label>
+    <select id="courseSelect">
+      <option value="">-- اختر الدورة --</option>
+    </select>
+    <input type="file" id="excelFile" accept=".xlsx" />
+  </div>
+
+  <div id="exportTab" class="tab-content">
+    <h2>عرض وتصدير الشهادات</h2>
+    <button class="export-btn" onclick="exportCertificatesZip()">تصدير جميع الشهادات في ملف مضغوط ZIP</button>
+    <div class="certificates" id="certContainer"></div>
+  </div>
+
+<script>
+  let courses = [];
+  let participantsData = [];
+  let selectedCourseIndex = null;
+
+  function showTab(tabId, event) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+  }
+
+  function saveCourse() {
+    const name = document.getElementById('courseName').value.trim();
+    const start = document.getElementById('startDate').value;
+    const end = document.getElementById('endDate').value;
+    if (!name || !start || !end) {
+      alert('يرجى ملء جميع حقول بيانات الدورة');
+      return;
+    }
+    // تحقق من وجود دورة بنفس الاسم
+    const existsIndex = courses.findIndex(c => c.name === name);
+    if (existsIndex >= 0) {
+      // تعديل دورة موجودة
+      courses[existsIndex] = { name, start, end };
+      alert('تم تعديل بيانات الدورة بنجاح!');
+    } else {
+      courses.push({ name, start, end });
+      alert('تم حفظ بيانات الدورة بنجاح!');
+    }
+    renderCoursesTable();
+    populateCourseSelect();
+    clearCourseInputs();
+  }
+
+  function renderCoursesTable() {
+    const tbody = document.querySelector('#coursesTable tbody');
+    tbody.innerHTML = '';
+    courses.forEach((course, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${course.name}</td>
+        <td>${formatDate(course.start)}</td>
+        <td>${formatDate(course.end)}</td>
+        <td><button class="edit-btn" onclick="editCourse(${index})">تعديل</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function editCourse(index) {
+    const course = courses[index];
+    document.getElementById('courseName').value = course.name;
+    document.getElementById('startDate').value = course.start;
+    document.getElementById('endDate').value = course.end;
+  }
+
+  function clearCourseInputs() {
+    document.getElementById('courseName').value = '';
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+  }
+
+  function populateCourseSelect() {
+    const select = document.getElementById('courseSelect');
+    select.innerHTML = '<option value="">-- اختر الدورة --</option>';
+    courses.forEach((course, idx) => {
+      const option = document.createElement('option');
+      option.value = idx;
+      option.textContent = course.name;
+      select.appendChild(option);
+    });
+  }
+
+  document.getElementById('excelFile').addEventListener('change', function(event){
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const courseSelect = document.getElementById('courseSelect');
+    selectedCourseIndex = courseSelect.value;
+
+    if (selectedCourseIndex === '') {
+      alert('يرجى اختيار الدورة التي تريد طباعة شهاداتها أولاً');
+      this.value = ''; // إعادة تعيين الملف المرفوع
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type:'array'});
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json(sheet);
+      participantsData = json;
+      generateCertificates(json);
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  function generateCertificates(data) {
+    const container = document.getElementById('certContainer');
+    container.innerHTML = '';
+    if (selectedCourseIndex === null || selectedCourseIndex === '') {
+      alert('يرجى اختيار الدورة أولاً');
+      return;
+    }
+    const courseData = courses[selectedCourseIndex];
+    data.forEach(entry => {
+      const cert = document.createElement('div');
+      cert.className = 'certificate';
+      cert.innerHTML = `
+        <h1>🏅 شهادة حضور دورة تطويرية</h1>
+        <p>تشهد أكاديمية إتجاه المستقبل للتدريب بأن المتدرب / ـة</p>
+        <h2>${entry["الاسم"] || "غير معروف"}</h2>
+        <p>سعودي / ـة الجنسية بموجب الهوية رقم <strong>${entry["رقم الهوية"] || "غير معروف"}</strong> حضر / ت دورة</p>
+        <h2>${courseData.name}</h2>
+        <p>بعدد ساعات 30 ساعة لمدة (10) أيام من تاريخ ${formatDate(courseData.start)} إلى ${formatDate(courseData.end)}</p>
+        <p>وبناءً على ذلك مُنح / ت هذه الشهادة</p>
+        <div class="footer">
+          <span>الختم</span>
+          <span>أحمد إبراهيم سلامه</span>
+          <span>المدير العام</span>
+        </div>
+      `;
+      container.appendChild(cert);
+    });
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('ar-EG');
+  }
+
+  function exportCertificatesZip() {
+    if (!participantsData.length) {
+      alert('يرجى رفع ملف أسماء المشتركين أولاً');
+      return;
+    }
+    if (selectedCourseIndex === null || selectedCourseIndex === '') {
+      alert('يرجى اختيار الدورة التي تريد تصدير شهاداتها أولاً');
+      return;
+    }
+
+    const zip = new JSZip();
+    const courseData = courses[selectedCourseIndex];
+
+    participantsData.forEach(entry => {
+      const name = entry["الاسم"] || "غير معروف";
+      const id = entry["رقم الهوية"] || "لايوجد";
+      const content = `
+      <html>
+      <head><meta charset="UTF-8"><title>شهادة حضور</title>
+      <style>
+        body { font-family: 'Segoe UI', sans-serif; direction: rtl; padding: 40px; background: #f4f4f4; }
+        .certificate {
+          width: 800px; height: 500px; border: 4px solid #333; background: white; padding: 30px; text-align: center; box-sizing: border-box;
+        }
+        h1 { font-size: 28px; margin-bottom: 10px; }
+        h2 { font-size: 24px; margin: 10px 0; }
+        p { font-size: 18px; margin: 5px 0; }
+        .footer {
+          margin-top: 40px; display: flex; justify-content: space-between; font-size: 16px;
+        }
+      </style>
+      </head>
+      <body>
+        <div class="certificate">
+          <h1>🏅 شهادة حضور دورة تطويرية</h1>
+          <p>تشهد أكاديمية إتجاه المستقبل للتدريب بأن المتدرب / ـة</p>
+          <h2>${name}</h2>
+          <p>سعودي / ـة الجنسية بموجب الهوية رقم <strong>${id}</strong> حضر / ت دورة</p>
+          <h2>${courseData.name}</h2>
+          <p>بعدد ساعات 30 ساعة لمدة (10) أيام من تاريخ ${formatDate(courseData.start)} إلى ${formatDate(courseData.end)}</p>
+          <p>وبناءً على ذلك مُنح / ت هذه الشهادة</p>
+          <div class="footer">
+            <span>الختم</span>
+            <span>أحمد إبراهيم سلامه</span>
+            <span>المدير العام</span>
+          </div>
+        </div>
+      </body>
+      </html>
+      `;
+      zip.file(`${name}.html`, content);
+    });
+
+    zip.generateAsync({type:"blob"})
+      .then(function(content) {
+        saveAs(content, "الشهادات.zip");
+      });
+  }
+</script>
+
+</body>
+</html>
