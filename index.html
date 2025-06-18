@@ -1,695 +1,993 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8" />
-  <title>نظام إصدار الشهادات</title>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-  <script type="text/javascript">
-    (function() {
-      // تم تحديث Public Key الخاص بك هنا
-      emailjs.init({
-        publicKey: "pyfwfXQk621NyRfEn", 
-      });
-    })();
-  </script>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      direction: rtl;
-      padding: 40px;
-      background-color: #f4f4f4;
-    }
-    h1 {
-      text-align: center;
-    }
-    .tabs {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 30px;
-      flex-wrap: nowrap;
-    }
-    .tabs button {
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 10px 25px;
-      font-size: 16px;
-      border-radius: 10px 10px 0 0;
-      cursor: pointer;
-      flex: 1;
-      max-width: 200px;
-      white-space: nowrap;
-      transition: background-color 0.3s;
-    }
-    .tabs button.active {
-      background: #0056b3;
-    }
-    .tab-content {
-      display: none;
-      background: #fff;
-      padding: 30px;
-      border-radius: 16px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-      max-width: 800px;
-      margin: auto;
-    }
-    .tab-content.active {
-      display: block;
-    }
-    input[type="file"], button.submit, button.export-btn, button.send-all-emails-btn {
-      margin: 20px 5px; /* Adjust margin for multiple buttons */
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      border-radius: 8px;
-      border: none;
-    }
-    button.submit {
-      background: #28a745;
-      color: white;
-    }
-    button.export-btn {
-      background: #007bff;
-      color: white;
-    }
-    button.send-all-emails-btn { /* Style for the new button */        
-        background-color: #6f42c1; /* Purple color */        
-        color: white;    
-    }
-    button.send-all-emails-btn:hover {        
-        background-color: #5a3597;    
-    }
-    .certificates {      
-        display: flex;      
-        flex-direction: column;      
-        align-items: center;    
-    }
-    .certificate {      
-        width: 800px;      
-        height: 500px;      
-        border: 4px solid #333;      
-        background: white;      
-        margin: 20px 0;      
-        padding: 30px;      
-        text-align: center;      
-        position: relative;      
-        box-sizing: border-box;      
-        display: flex;      
-        flex-direction: column;      
-        justify-content: space-between;    
-    }
-    .certificate-header h1 {      
-        font-size: 28px;      
-        margin-bottom: 10px;    
-    }
-    .certificate-body {        
-        flex-grow: 1;        
-        display: flex;        
-        flex-direction: column;        
-        justify-content: center;        
-        align-items: center;    
-    }
-    .certificate-body h2 {      
-        font-size: 24px;      
-        margin: 10px 0;    
-    }
-    .certificate-body p {      
-        font-size: 18px;      
-        margin: 5px 0;    
-    }
-    .footer {      
-        position: relative;      
-        bottom: 0;      
-        left: 0;      
-        right: 0;      
-        display: flex;      
-        justify-content: space-between;      
-        font-size: 16px;      
-        padding-top: 20px;    
-    }
-    .certificate-actions {      
-        text-align: center;      
-        margin-top: 10px;    
-    }
-    .certificate-actions button {      
-        padding: 8px 15px;      
-        margin: 5px;      
-        border-radius: 6px;      
-        border: none;      
-        cursor: pointer;      
-        font-size: 15px;      
-        transition: background-color 0.3s;    
-    }
-    .certificate-actions .send-email-btn {      
-        background-color: #ffc107;      
-        color: #212529;    
-    }
-    .certificate-actions .send-email-btn:hover {      
-        background-color: #e0a800;    
-    }
-    .certificate-actions .print-btn {        
-        background-color: #17a2b8; /* Info blue color */        
-        color: white;    
-    }
-    .certificate-actions .print-btn:hover {        
-        background-color: #138496;    
-    }
-    table {      
-        width: 100%;      
-        border-collapse: collapse;      
-        margin-top: 20px;    
-    }
-    table, th, td {      
-        border: 2px solid #007bff;    
-    }
-    th, td {      
-        padding: 10px;      
-        text-align: center;      
-        font-size: 16px;    
-    }
-    th {      
-        background-color: #007bff;      
-        color: white;    
-    }
-    button.edit-btn {      
-        background-color: #ffc107;      
-        border: none;      
-        padding: 6px 14px;      
-        border-radius: 6px;      
-        cursor: pointer;      
-        color: #212529;      
-        font-weight: bold;      
-        transition: background-color 0.3s;    
-    }
-    button.edit-btn:hover {      
-        background-color: #e0a800;    
-    }
-    #courseSelect {      
-        width: 100%;      
-        max-width: 400px;      
-        padding: 10px 15px;      
-        font-size: 16px;      
-        border: 2px solid #007bff;      
-        border-radius: 8px;      
-        outline: none;      
-        box-sizing: border-box;      
-        margin-bottom: 20px;      
-        appearance: none;      
-        background-color: #fff;      
-        cursor: pointer;    
-    }
-    #uploadTab label[for="courseSelect"] {      
-        font-weight: bold;      
-        margin-bottom: 8px;      
-        display: block;    
-    }
-    @media print {      
-        body * {        
-            visibility: hidden;      
-        }      
-        .certificates, .certificates * {        
-            visibility: visible;      
-        }      
-        .certificates {        
-            position: absolute;        
-            left: 0;        
-            top: 0;      
-        }      
-        .certificate-actions {        
-            display: none;      
-        }    
-    }  
-  </style>
-</head>
-<body>
-  <h1>📄 نظام إصدار الشهادات</h1>
-  <div class="tabs">
-    <button class="active" onclick="showTab('courseTab', event)">➕ إضافة بيانات الدورة</button>
-    <button onclick="showTab('uploadTab', event)">📥 رفع ملف الأسماء</button>
-    <button onclick="showTab('exportTab', event)">📤 تصدير الشهادات</button>
-  </div>
+    <meta charset="UTF-8" />
+    <title>نظام إصدار الشهادات</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function() {
+            emailjs.init({
+                publicKey: "pyfwfXQk621NyRfEn", 
+            });
+        })();
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            direction: rtl;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+            line-height: 1.6;
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .tabs button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            font-size: 1.1em;
+            border-radius: 10px 10px 0 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-grow: 1;
+            max-width: 220px;
+            white-space: nowrap;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .tabs button:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        .tabs button.active {
+            background: #0056b3;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            border-bottom: 3px solid #ffc107;
+        }
+        .tab-content {
+            display: none;
+            background: #fff;
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            max-width: 900px;
+            margin: auto;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        input[type="text"], input[type="date"], input[type="email"], select {
+            width: calc(100% - 22px);
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus, input[type="date"]:focus, input[type="email"]:focus, select:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 5px rgba(0,123,255,0.2);
+        }
+        button.submit, button.export-btn, button.send-all-emails-btn, #addParticipantBtn {
+            padding: 12px 25px;
+            font-size: 1em;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            color: white;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            margin-top: 10px;
+        }
+        button.submit {
+            background: #28a745;
+        }
+        button.submit:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+        button.export-btn {
+            background: #007bff;
+        }
+        button.export-btn:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+        button.send-all-emails-btn {
+            background-color: #6f42c1; /* Purple */
+        }
+        button.send-all-emails-btn:hover {
+            background-color: #5a3597;
+            transform: translateY(-1px);
+        }
+        #addParticipantBtn {
+            background-color: #17a2b8; /* Info blue */
+        }
+        #addParticipantBtn:hover {
+            background-color: #138496;
+            transform: translateY(-1px);
+        }
 
-  <div id="courseTab" class="tab-content active">
-    <h2>إضافة بيانات الدورة</h2>
-    <input type="text" id="courseName" placeholder="اسم الدورة" />
-    <input type="date" id="startDate" />
-    <input type="date" id="endDate" />
-    <button class="submit" onclick="saveCourse()">حفظ بيانات الدورة</button>
-
-    <h2>الدورات المضافة</h2>
-    <table id="coursesTable">
-      <thead>
-        <tr>
-          <th>اسم الدورة</th>
-          <th>تاريخ البداية</th>
-          <th>تاريخ النهاية</th>
-          <th>الإجراءات</th>
-        </tr>
-      </thead>
-      <tbody>
-        </tbody>
-    </table>
-  </div>
-
-  <div id="uploadTab" class="tab-content">
-    <h2>رفع ملف أسماء المشتركين</h2>
-    <label for="courseSelect">اختر الدورة التي تريد طباعة شهاداتها:</label>
-    <select id="courseSelect">
-      <option value="">-- اختر الدورة --</option>
-    </select>
-    <input type="file" id="excelFile" accept=".xlsx" />
-  </div>
-
-  <div id="exportTab" class="tab-content">
-    <h2>عرض وتصدير الشهادات</h2>
-    <button class="export-btn" onclick="exportCertificatesZip()">تصدير جميع الشهادات في ملف مضغوط ZIP</button>
-    <button class="send-all-emails-btn" onclick="sendAllCertificatesByEmail()">إرسال جميع الشهادات بالإيميل</button>
-    <div class="certificates" id="certContainer"></div>
-  </div>
-
-<script>
-  let courses = [];
-  let participantsData = []; // سيحتوي على { name: 'اسم', email: 'ايميل@مثال.com' }
-  let selectedCourseIndex = null;
-
-  function showTab(tabId, event) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
-
-    document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-  }
-
-  function saveCourse() {
-    const name = document.getElementById('courseName').value.trim();
-    const start = document.getElementById('startDate').value;
-    const end = document.getElementById('endDate').value;
-    if (!name || !start || !end) {
-      alert('يرجى ملء جميع حقول بيانات الدورة');
-      return;
-    }
-    const existsIndex = courses.findIndex(c => c.name === name);
-    if (existsIndex >= 0) {
-      courses[existsIndex] = { name, start, end };
-      alert('تم تعديل بيانات الدورة بنجاح!');
-    } else {
-      courses.push({ name, start, end });
-      alert('تم حفظ بيانات الدورة بنجاح!');
-    }
-    renderCoursesTable();
-    populateCourseSelect();
-    clearCourseInputs();
-  }
-
-  function renderCoursesTable() {
-    const tbody = document.querySelector('#coursesTable tbody');
-    tbody.innerHTML = '';
-    courses.forEach((course, index) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${course.name}</td>
-        <td>${formatDate(course.start)}</td>
-        <td>${formatDate(course.end)}</td>
-        <td>
-          <button class="edit-btn" onclick="editCourse(${index})">تعديل</button>
-          <button class="delete-btn" onclick="deleteCourse(${index})" style="
-            background-color: #dc3545; 
-            color: white; 
-            border: none; 
-            padding: 6px 14px; 
-            border-radius: 6px; 
+        .certificates {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px; /* Space between certificates */
+        }
+        .certificate {
+            width: 850px; /* Adjusted for better print scale */
+            height: 550px; /* Adjusted */
+            border: 5px solid #333;
+            background: #fff;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            overflow: hidden; /* Ensure content stays within borders */
+        }
+        .certificate-header h1 {
+            font-size: 3em;
+            margin-bottom: 15px;
+            color: #007bff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        .certificate-body {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 0 20px;
+        }
+        .certificate-body p {
+            font-size: 1.2em;
+            margin: 8px 0;
+        }
+        .certificate-body h2 {
+            font-size: 2.8em;
+            margin: 15px 0;
+            color: #d9534f; /* A prominent color for the name/course */
+            font-weight: bold;
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.1em;
+            padding-top: 25px;
+            border-top: 1px dashed #ccc;
+            color: #555;
+        }
+        .certificate-actions {
+            text-align: center;
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .certificate-actions button {
+            padding: 10px 20px;
+            margin: 0; /* Remove individual margin */
+            border-radius: 6px;
+            font-size: 0.95em;
+        }
+        .certificate-actions .send-email-btn {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .certificate-actions .send-email-btn:hover {
+            background-color: #e0a800;
+        }
+        .certificate-actions .print-btn {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .certificate-actions .print-btn:hover {
+            background-color: #138496;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        table, th, td {
+            border: 1px solid #e0e0e0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            font-size: 1em;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tbody tr:hover {
+            background-color: #f0f8ff;
+        }
+        button.edit-btn, button.delete-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
             cursor: pointer;
             font-weight: bold;
-            margin-left: 6px;
-          ">حذف</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  function editCourse(index) {
-    const course = courses[index];
-    document.getElementById('courseName').value = course.name;
-    document.getElementById('startDate').value = course.start;
-    document.getElementById('endDate').value = course.end;
-  }
-
-  function deleteCourse(index) {
-    if (confirm('هل أنت متأكد من حذف هذه الدورة؟')) {
-      courses.splice(index, 1);
-      renderCoursesTable();
-      populateCourseSelect();
-      clearCourseInputs();
-      alert('تم حذف الدورة بنجاح!');
-    }
-  }
-
-  function clearCourseInputs() {
-    document.getElementById('courseName').value = '';
-    document.getElementById('startDate').value = '';
-    document.getElementById('endDate').value = '';
-  }
-
-  function populateCourseSelect() {
-    const select = document.getElementById('courseSelect');
-    select.innerHTML = '<option value="">-- اختر الدورة --</option>';
-    courses.forEach((course, idx) => {
-      const option = document.createElement('option');
-      option.value = idx;
-      option.textContent = course.name;
-      select.appendChild(option);
-    });
-  }
-
-  document.getElementById('excelFile').addEventListener('change', function(event){
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const courseSelect = document.getElementById('courseSelect');
-    selectedCourseIndex = courseSelect.value;
-
-    if (selectedCourseIndex === '') {
-      alert('يرجى اختيار الدورة التي تريد طباعة شهاداتها أولاً');
-      this.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function(e){
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, {type:'array'});
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      // تغيير: قراءة عمودين: الاسم والبريد الإلكتروني (العمود الأول والعمود الثاني)
-      const json = XLSX.utils.sheet_to_json(sheet, {header:1});
-
-      participantsData = [];
-      for(let i=1; i<json.length; i++) {
-        const row = json[i];
-        if(row.length > 0 && row[0]) {
-          // نفترض أن العمود الأول هو الاسم والعمود الثاني هو البريد الإلكتروني
-          participantsData.push({ name: row[0], email: row[1] ? String(row[1]).trim() : '' }); // إضافة البريد الإلكتروني (إذا كان موجودًا)
+            transition: background-color 0.3s ease;
         }
-      }
-      alert(`تم تحميل ${participantsData.length} اسماً`);
-      renderCertificates();
-      document.querySelector('.tabs button:nth-child(3)').click();
-    }
-    reader.readAsArrayBuffer(file);
-  });
-
-  function renderCertificates() {
-    const container = document.getElementById('certContainer');
-    container.innerHTML = '';
-
-    if (selectedCourseIndex === null || selectedCourseIndex === '') {
-      container.innerHTML = '<p>يرجى اختيار دورة ورفع ملف الأسماء أولاً.</p>';
-      return;
-    }
-
-    const course = courses[selectedCourseIndex];
-    if (!course) {
-      container.innerHTML = '<p>الدورة غير موجودة.</p>';
-      return;
-    }
-
-    participantsData.forEach((participant, index) => {
-      const div = document.createElement('div');
-      // إنشاء حاوية للشهادة نفسها
-      const certificateContent = document.createElement('div');
-      certificateContent.className = 'certificate';
-
-      certificateContent.innerHTML = `
-        <div class="certificate-header">
-          <h1>شهادة شكر وتقدير</h1>
-        </div>
-        <div class="certificate-body">
-          <p>تُمنح هذه الشهادة إلى</p>
-          <h2>${participant.name}</h2>
-          <p>لمشاركته الفعالة في دورة</p>
-          <h2>${course.name}</h2>
-          <p>من تاريخ: ${formatDate(course.start)} إلى: ${formatDate(course.end)}</p>
-        </div>
-        <div class="footer">
-          <span>التاريخ: ${formatDate(new Date().toISOString().split('T')[0])}</span>
-          <span>الإدارة</span>
-        </div>
-      `;
-      div.appendChild(certificateContent);
-
-      // إضافة أزرار الإجراءات أسفل كل شهادة
-      const actionsDiv = document.createElement('div');
-      actionsDiv.className = 'certificate-actions';
-      actionsDiv.innerHTML = `
-        <button class="send-email-btn" onclick="sendCertificateEmail(${index})">إرسال الشهادة بالإيميل</button>
-        <button class="print-btn" onclick="printCertificate(${index})">طباعة الشهادة</button>
-      `;
-      div.appendChild(actionsDiv);
-
-      container.appendChild(div);
-    });
-  }
-
-  async function sendCertificateEmail(index) {
-    const participant = participantsData[index];
-    const course = courses[selectedCourseIndex];
-
-    if (!participant || !course) {
-      alert('خطأ: بيانات المتدرب أو الدورة غير متوفرة.');
-      return;
-    }
-
-    if (!participant.email || !validateEmail(participant.email)) {
-      const emailPrompt = prompt(`الرجاء إدخال البريد الإلكتروني للمتدرب "${participant.name}":`, participant.email || '');
-      if (emailPrompt === null || !validateEmail(emailPrompt)) {
-        alert('تم إلغاء الإرسال أو البريد الإلكتروني غير صالح.');
-        return false; // Return false if email is not valid or prompt is cancelled
-      }
-      participant.email = emailPrompt; // تحديث البريد الإلكتروني للمتدرب
-    }
-
-    const templateParams = {
-      to_name: participant.name,
-      to_email: participant.email,
-      course_name: course.name,
-      start_date: formatDate(course.start),
-      end_date: formatDate(course.end),
-      issue_date: formatDate(new Date().toISOString().split('T')[0]),
-      // يمكنك إضافة المزيد من المتغيرات هنا ليتم استخدامها في قالب EmailJS الخاص بك
-    };
-    
-    // تم تحديث Service ID و Template ID الخاصين بك هنا
-    const serviceID = 'service_42kt09l';    
-    const templateID = 'template_g3rd0ao';  
-
-    try {
-      const response = await emailjs.send(serviceID, templateID, templateParams);
-      console.log('SUCCESS!', response.status, response.text);
-      // alert(`تم إرسال الشهادة إلى ${participant.name} بنجاح!`); // لا نريد هذه الرسائل المنبثقة لكل إيميل في الإرسال الجماعي
-      return true; // Return true on success
-    } catch (error) {
-      console.log('FAILED...', error);
-      alert(`فشل إرسال الشهادة إلى ${participant.name}. الرجاء التحقق من الإعدادات والمحاولة مرة أخرى. خطأ: ${error.text}`);
-      return false; // Return false on failure
-    }
-  }
-
-  // دالة جديدة لإرسال جميع الشهادات  
-  async function sendAllCertificatesByEmail() {    
-    if (participantsData.length === 0) {      
-        alert('لا توجد شهادات لإرسالها. يرجى رفع ملف الأسماء أولاً.');      
-        return;    
-    }
-
-    const confirmed = confirm(`هل أنت متأكد من إرسال ${participantsData.length} شهادة عبر البريد الإلكتروني؟`);    
-    if (!confirmed) {      
-        return;    
-    }
-
-    let successCount = 0;    
-    let failCount = 0;    
-    const missingEmails = [];
-
-    // تعطيل الزر أثناء الإرسال لمنع النقر المتعدد    
-    const sendAllBtn = document.querySelector('.send-all-emails-btn');    
-    sendAllBtn.disabled = true;    
-    sendAllBtn.textContent = 'جاري الإرسال... الرجاء الانتظار';
-
-    for (let i = 0; i < participantsData.length; i++) {      
-        const participant = participantsData[i];      
-        if (!participant.email || !validateEmail(participant.email)) {        
-            missingEmails.push(participant.name);        
-            failCount++;        
-            continue; // تخطي المتدربين الذين ليس لديهم بريد إلكتروني صالح      
+        button.edit-btn {
+            background-color: #ffc107;
+            color: #212529;
+            margin-left: 8px;
+        }
+        button.edit-btn:hover {
+            background-color: #e0a800;
+        }
+        button.delete-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        button.delete-btn:hover {
+            background-color: #c82333;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: block;
+            color: #555;
         }
 
-        const success = await sendCertificateEmail(i); // استخدم نفس الدالة الفردية      
-        if (success) {        
-            successCount++;      
-        } else {        
-            failCount++;      
-        }      
-        // يمكنك هنا تحديث واجهة المستخدم لعرض التقدم (اختياري)      
-        console.log(`تم إرسال ${successCount} / ${participantsData.length} شهادة.`);    
-    }
+        /* Styles for manual entry section */
+        .manual-entry-section {
+            border: 1px dashed #007bff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            background-color: #e6f2ff;
+        }
+        .manual-entry-section h3 {
+            color: #007bff;
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .manual-entry-section input[type="text"],
+        .manual-entry-section input[type="email"] {
+            width: calc(50% - 25px); /* Half width with gap */
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: top; /* Align to top */
+        }
+        .manual-entry-section input[type="text"]:first-child {
+            margin-right: 10px; /* Space between inputs */
+            margin-left: 0;
+        }
+        .manual-entry-section button {
+            width: 100%;
+            margin-top: 15px;
+        }
 
-    sendAllBtn.disabled = false; // إعادة تفعيل الزر    
-    sendAllBtn.textContent = 'إرسال جميع الشهادات بالإيميل';
+        /* Participant List Table within Upload Tab */
+        #participantListTable {
+            margin-top: 30px;
+            display: none; /* Hidden by default until participants are added */
+        }
+        #participantListTable.active {
+            display: table;
+        }
+        #participantListTable th, #participantListTable td {
+            font-size: 0.95em;
+            padding: 10px;
+        }
 
-    let resultMessage = `عملية إرسال الشهادات انتهت:\n`;    
-    resultMessage += `تم الإرسال بنجاح لـ ${successCount} متدرب.\n`;    
-    resultMessage += `فشل الإرسال لـ ${failCount} متدرب.\n`;
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .certificates, .certificates * {
+                visibility: visible;
+            }
+            .certificates {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                display: block;
+            }
+            .certificate {
+                width: 28cm; /* A4 width */
+                height: 19cm; /* A4 height - adjusted for landscape */
+                border: 2px solid #333;
+                box-shadow: none;
+                page-break-after: always;
+                margin: 0 auto; /* Center on page */
+            }
+            .certificate:last-child {
+                page-break-after: avoid;
+            }
+            .certificate-actions {
+                display: none;
+            }
+            h1, h2, p {
+                color: #000 !important; /* Ensure black text for print */
+                text-shadow: none !important;
+            }
+            .footer {
+                border-top: 1px dashed #000;
+                color: #000;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>📄 نظام إصدار الشهادات</h1>
+    <div class="tabs">
+        <button class="active" onclick="showTab('courseTab', event)">➕ إضافة بيانات الدورة</button>
+        <button onclick="showTab('uploadTab', event)">📥 إدارة المتدربين</button>
+        <button onclick="showTab('exportTab', event)">📤 عرض وتصدير الشهادات</button>
+    </div>
 
-    if (missingEmails.length > 0) {      
-        resultMessage += `لم يتم إرسال شهادات للمتدربين التالية أسمائهم بسبب عدم وجود بريد إلكتروني صالح:\n- ${missingEmails.join('\n- ')}\n`;      
-        resultMessage += `يمكنك إرسال شهاداتهم بشكل فردي لإدخال البريد الإلكتروني يدوياً.`;    
-    }
-    alert(resultMessage);  
-}
+    <div id="courseTab" class="tab-content active">
+        <h2>إضافة وتعديل بيانات الدورة</h2>
+        <input type="text" id="courseName" placeholder="اسم الدورة" />
+        <input type="date" id="startDate" />
+        <input type="date" id="endDate" />
+        <button class="submit" onclick="saveCourse()">حفظ بيانات الدورة</button>
 
-  function validateEmail(email) {    
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;    
-    return re.test(String(email).toLowerCase());  
-}
+        <h2>الدورات المضافة</h2>
+        <table id="coursesTable">
+            <thead>
+                <tr>
+                    <th>اسم الدورة</th>
+                    <th>تاريخ البداية</th>
+                    <th>تاريخ النهاية</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
 
-  function printCertificate(index) {    
-    const certificateElement = document.querySelectorAll('.certificate')[index];    
-    if (certificateElement) {      
-        const printWindow = window.open('', '', 'height=600,width=800');      
-        printWindow.document.write('<html><head><title>طباعة الشهادة</title>');      
-        printWindow.document.write('<style>');      
-        printWindow.document.write(`        
-            body { font-family: 'Segoe UI', sans-serif; direction: rtl; margin: 0; padding: 0; }        
-            .certificate {            
-                width: 780px;            
-                height: 480px;            
-                border: 4px solid #333;            
-                background: white;            
-                margin: 10px auto;            
-                padding: 30px;            
-                text-align: center;            
-                position: relative;            
-                box-sizing: border-box;            
-                display: flex;            
-                flex-direction: column;            
-                justify-content: space-between;        
-            }        
-            .certificate-header h1 { font-size: 28px; margin-bottom: 10px; }        
-            .certificate-body { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }        
-            .certificate-body h2 { font-size: 24px; margin: 10px 0; }        
-            .certificate-body p { font-size: 18px; margin: 5px 0; }        
-            .footer {            
-                position: relative;            
-                bottom: 0;            
-                left: 0;            
-                right: 0;            
-                display: flex;            
-                justify-content: space-between;            
-                font-size: 16px;            
-                padding-top: 20px;        
-            }      
-        `);      
-        printWindow.document.write('</style></head><body>');      
-        printWindow.document.write(certificateElement.outerHTML);      
-        printWindow.document.write('</body></html>');      
-        printWindow.document.close();      
-        printWindow.focus();      
-        printWindow.print();    
-    }  
-}
+    <div id="uploadTab" class="tab-content">
+        <h2>اختر الدورة أولاً</h2>
+        <label for="courseSelect">اختر الدورة التي تريد إدارة متدربيها:</label>
+        <select id="courseSelect" onchange="resetParticipantsInput()">
+            <option value="">-- اختر الدورة --</option>
+        </select>
 
-  function formatDate(dateStr) {    
-    if (!dateStr) return '';    
-    const d = new Date(dateStr);    
-    if (isNaN(d)) return dateStr;    
-    return d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });  
-}
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
 
-  function exportCertificatesZip() {    
-    if (participantsData.length === 0) {      
-        alert('لا توجد شهادات لتصديرها. يرجى رفع ملف الأسماء أولاً.');      
-        return;    
-    }
+        <h2>1. رفع ملف أسماء المشتركين (Excel)</h2>
+        <p>يرجى التأكد أن العمود الأول هو الاسم والعمود الثاني هو البريد الإلكتروني.</p>
+        <input type="file" id="excelFile" accept=".xlsx" />
 
-    const course = courses[selectedCourseIndex];    
-    if (!course) {      
-        alert('يرجى اختيار دورة صحيحة.');      
-        return;
-    }
+        <div class="manual-entry-section">
+            <h3>أو 2. إضافة متدرب يدويًا</h3>
+            <input type="text" id="manualParticipantName" placeholder="اسم المتدرب" />
+            <input type="email" id="manualParticipantEmail" placeholder="البريد الإلكتروني (اختياري)" />
+            <button id="addParticipantBtn" onclick="addManualParticipant()">إضافة المتدرب</button>
+        </div>
 
-    const zip = new JSZip();
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
 
-    participantsData.forEach(participant => {      
-        const certificateHtml = `        
-            <!DOCTYPE html>        
-            <html lang="ar">        
-            <head>          
-                <meta charset="UTF-8">          
-                <title>شهادة - ${participant.name}</title>          
-                <style>            
-                    body { font-family: 'Segoe UI', sans-serif; direction: rtl; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f4f4f4; }            
-                    .certificate {              
-                        width: 800px;              
-                        height: 500px;              
-                        border: 4px solid #333;              
-                        background: white;              
-                        padding: 30px;              
-                        text-align: center;              
-                        position: relative;              
-                        box-sizing: border-box;              
-                        display: flex;              
-                        flex-direction: column;              
-                        justify-content: space-between;              
-                        box-shadow: 0 8px 20px rgba(0,0,0,0.1);            
-                    }            
-                    .certificate-header h1 { font-size: 28px; margin-bottom: 10px; }            
-                    .certificate-body { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }            
-                    .certificate-body h2 { font-size: 24px; margin: 10px 0; }            
-                    .certificate-body p { font-size: 18px; margin: 5px 0; }            
-                    .footer {              
-                        position: relative;              
-                        bottom: 0;              
-                        left: 0;              
-                        right: 0;              
-                        display: flex;              
-                        justify-content: space-between;              
-                        font-size: 16px;              
-                        padding-top: 20px;            
-                    }          
-                </style>        
-            </head>        
-            <body>          
-                <div class="certificate">            
-                    <div class="certificate-header">              
-                        <h1>شهادة شكر وتقدير</h1>            
-                    </div>            
-                    <div class="certificate-body">              
-                        <p>تُمنح هذه الشهادة إلى</p>              
-                        <h2>${participant.name}</h2>              
-                        <p>لمشاركته الفعالة في دورة</p>              
-                        <h2>${course.name}</h2>              
-                        <p>من تاريخ: ${formatDate(course.start)} إلى: ${formatDate(course.end)}</p>            
-                    </div>            
-                    <div class="footer">              
-                        <span>التاريخ: ${formatDate(new Date().toISOString().split('T')[0])}</span>              
-                        <span>الإدارة</span>            
-                    </div>          
-                </div>        
-            </body>        
-            </html>      
-        `;      
-        zip.file(`${participant.name}.html`, certificateHtml);    
+        <h2>قائمة المتدربين للدورة المختارة</h2>
+        <table id="participantListTable">
+            <thead>
+                <tr>
+                    <th>الاسم</th>
+                    <th>البريد الإلكتروني</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="participantListBody">
+                </tbody>
+        </table>
+        <button class="submit" onclick="saveParticipantsAndGenerateCerts()" style="margin-top:20px;">حفظ المتدربين وعرض الشهادات</button>
+
+    </div>
+
+    <div id="exportTab" class="tab-content">
+        <h2>عرض وتصدير الشهادات</h2>
+        <p id="exportTabMessage" style="text-align: center; color: #666;">يرجى اختيار دورة وتجهيز المتدربين في تبويب "إدارة المتدربين" لعرض الشهادات هنا.</p>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button class="export-btn" onclick="exportCertificatesZip()">تصدير جميع الشهادات في ملف مضغوط ZIP</button>
+            <button class="send-all-emails-btn" onclick="sendAllCertificatesByEmail()">إرسال جميع الشهادات بالإيميل</button>
+        </div>
+        <div class="certificates" id="certContainer"></div>
+    </div>
+
+<script>
+    let courses = [];
+    let participantsData = []; // سيحتوي على { name: 'اسم', email: 'ايميل@مثال.com' }
+    let selectedCourseIndex = null;
+
+    // Load data from localStorage on start
+    document.addEventListener('DOMContentLoaded', (event) => {
+        loadData();
+        populateCourseSelect();
+        renderCoursesTable(); // Display courses on load
     });
 
-    zip.generateAsync({type:"blob"}).then(function(content) {      
-        saveAs(content, `${course.name}_شهادات.zip`);    
-    });  
-  }
+    function showTab(tabId, event) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+
+        document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+
+        // Specific actions when switching tabs
+        if (tabId === 'uploadTab') {
+            resetParticipantsInput(); // Clear manual entry and participant list on tab switch
+        } else if (tabId === 'exportTab') {
+            // Check if course and participants are ready before rendering
+            if (selectedCourseIndex !== null && participantsData.length > 0) {
+                document.getElementById('exportTabMessage').style.display = 'none';
+                renderCertificates();
+            } else {
+                document.getElementById('exportTabMessage').style.display = 'block';
+                document.getElementById('certContainer').innerHTML = ''; // Clear old certs
+            }
+        }
+    }
+
+    function saveCourse() {
+        const name = document.getElementById('courseName').value.trim();
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        if (!name || !start || !end) {
+            alert('يرجى ملء جميع حقول بيانات الدورة');
+            return;
+        }
+
+        const existsIndex = courses.findIndex(c => c.name === name);
+        if (existsIndex >= 0) {
+            // Update existing course
+            courses[existsIndex] = { name, start, end };
+            alert('تم تعديل بيانات الدورة بنجاح!');
+        } else {
+            // Add new course
+            courses.push({ name, start, end });
+            alert('تم حفظ بيانات الدورة بنجاح!');
+        }
+        saveData(); // Save to localStorage
+        renderCoursesTable();
+        populateCourseSelect();
+        clearCourseInputs();
+    }
+
+    function renderCoursesTable() {
+        const tbody = document.querySelector('#coursesTable tbody');
+        tbody.innerHTML = '';
+        if (courses.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4">لا توجد دورات محفوظة حالياً.</td></tr>';
+            return;
+        }
+        courses.forEach((course, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${course.name}</td>
+                <td>${formatDate(course.start)}</td>
+                <td>${formatDate(course.end)}</td>
+                <td>
+                    <button class="edit-btn" onclick="editCourse(${index})">تعديل</button>
+                    <button class="delete-btn" onclick="deleteCourse(${index})">حذف</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function editCourse(index) {
+        const course = courses[index];
+        document.getElementById('courseName').value = course.name;
+        document.getElementById('startDate').value = course.start;
+        document.getElementById('endDate').value = course.end;
+    }
+
+    function deleteCourse(index) {
+        if (confirm('هل أنت متأكد من حذف هذه الدورة؟ سيتم حذف جميع المتدربين المرتبطين بها.')) {
+            // Remove any associated participants if they were loaded for this course
+            if (selectedCourseIndex == index) {
+                participantsData = [];
+                renderParticipantListTable();
+            }
+            courses.splice(index, 1);
+            saveData();
+            renderCoursesTable();
+            populateCourseSelect();
+            clearCourseInputs();
+            alert('تم حذف الدورة بنجاح!');
+        }
+    }
+
+    function clearCourseInputs() {
+        document.getElementById('courseName').value = '';
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+    }
+
+    function populateCourseSelect() {
+        const select = document.getElementById('courseSelect');
+        const currentSelectedValue = select.value; // Keep track of current selection
+        select.innerHTML = '<option value="">-- اختر الدورة --</option>';
+        courses.forEach((course, idx) => {
+            const option = document.createElement('option');
+            option.value = idx;
+            option.textContent = course.name;
+            select.appendChild(option);
+        });
+        // Restore previous selection if exists
+        if (currentSelectedValue !== null && select.querySelector(`option[value="${currentSelectedValue}"]`)) {
+            select.value = currentSelectedValue;
+        }
+    }
+
+    // This function runs when a course is selected or when switching tabs
+    function resetParticipantsInput() {
+        document.getElementById('excelFile').value = ''; // Clear file input
+        document.getElementById('manualParticipantName').value = '';
+        document.getElementById('manualParticipantEmail').value = '';
+        participantsData = []; // Clear current participants
+        renderParticipantListTable(); // Clear table
+        selectedCourseIndex = document.getElementById('courseSelect').value;
+        if (selectedCourseIndex !== '') {
+            // Attempt to load participants for the newly selected course if they were saved
+            const courseKey = `course_${selectedCourseIndex}_participants`;
+            const savedParticipants = localStorage.getItem(courseKey);
+            if (savedParticipants) {
+                participantsData = JSON.parse(savedParticipants);
+                renderParticipantListTable();
+            }
+        }
+    }
+
+    document.getElementById('excelFile').addEventListener('change', function(event){
+        const file = event.target.files[0];
+        if (!file) return;
+
+        selectedCourseIndex = document.getElementById('courseSelect').value;
+
+        if (selectedCourseIndex === '') {
+            alert('يرجى اختيار الدورة التي تريد إضافة متدربين لها أولاً.');
+            this.value = ''; // Clear file input
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e){
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type:'array'});
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const json = XLSX.utils.sheet_to_json(sheet, {header:1});
+
+            participantsData = []; // Clear existing data before loading from Excel
+            for(let i=1; i<json.length; i++) { // Start from 1 to skip header row
+                const row = json[i];
+                if(row.length > 0 && row[0]) {
+                    participantsData.push({ name: String(row[0]).trim(), email: row[1] ? String(row[1]).trim() : '' });
+                }
+            }
+            alert(`تم تحميل ${participantsData.length} اسماً من ملف Excel.`);
+            renderParticipantListTable(); // Display loaded participants
+        }
+        reader.readAsArrayBuffer(file);
+    });
+
+    function addManualParticipant() {
+        selectedCourseIndex = document.getElementById('courseSelect').value;
+        if (selectedCourseIndex === '') {
+            alert('يرجى اختيار الدورة التي تريد إضافة متدرب لها أولاً.');
+            return;
+        }
+
+        const name = document.getElementById('manualParticipantName').value.trim();
+        const email = document.getElementById('manualParticipantEmail').value.trim();
+
+        if (!name) {
+            alert('يرجى إدخال اسم المتدرب.');
+            return;
+        }
+        if (email && !validateEmail(email)) {
+            alert('البريد الإلكتروني المدخل غير صالح.');
+            return;
+        }
+
+        participantsData.push({ name: name, email: email });
+        document.getElementById('manualParticipantName').value = ''; // Clear input
+        document.getElementById('manualParticipantEmail').value = ''; // Clear input
+        renderParticipantListTable(); // Update the list
+        alert(`تمت إضافة المتدرب "${name}" بنجاح.`);
+    }
+
+    function renderParticipantListTable() {
+        const tbody = document.getElementById('participantListBody');
+        tbody.innerHTML = '';
+        if (participantsData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3">لا توجد متدربون مضافون لهذه الدورة حتى الآن.</td></tr>';
+            document.getElementById('participantListTable').classList.remove('active');
+            return;
+        }
+        document.getElementById('participantListTable').classList.add('active');
+
+        participantsData.forEach((participant, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${participant.name}</td>
+                <td>${participant.email || 'لا يوجد'}</td>
+                <td>
+                    <button class="delete-btn" onclick="deleteParticipant(${index})">حذف</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function deleteParticipant(index) {
+        if (confirm(`هل أنت متأكد من حذف المتدرب "${participantsData[index].name}"؟`)) {
+            participantsData.splice(index, 1);
+            renderParticipantListTable();
+            alert('تم حذف المتدرب بنجاح.');
+        }
+    }
+
+    function saveParticipantsAndGenerateCerts() {
+        if (selectedCourseIndex === null || selectedCourseIndex === '') {
+            alert('يرجى اختيار الدورة أولاً.');
+            return;
+        }
+        if (participantsData.length === 0) {
+            alert('لا توجد أسماء متدربين. يرجى إضافة أسماء يدوياً أو عن طريق ملف Excel.');
+            return;
+        }
+
+        // Save participants for the currently selected course
+        localStorage.setItem(`course_${selectedCourseIndex}_participants`, JSON.stringify(participantsData));
+        alert('تم حفظ قائمة المتدربين بنجاح!');
+        document.querySelector('.tabs button:nth-child(3)').click(); // Switch to export tab
+    }
+
+    function renderCertificates() {
+        const container = document.getElementById('certContainer');
+        container.innerHTML = '';
+
+        if (selectedCourseIndex === null || selectedCourseIndex === '' || !courses[selectedCourseIndex]) {
+            document.getElementById('exportTabMessage').style.display = 'block';
+            return;
+        }
+        document.getElementById('exportTabMessage').style.display = 'none';
+
+
+        const course = courses[selectedCourseIndex];
+        
+        if (!course || participantsData.length === 0) {
+            document.getElementById('exportTabMessage').style.display = 'block';
+            document.getElementById('exportTabMessage').textContent = 'لا توجد شهادات لعرضها. يرجى التأكد من اختيار الدورة وإضافة المتدربين.';
+            return;
+        }
+
+        participantsData.forEach((participant, index) => {
+            const div = document.createElement('div');
+            const certificateContent = document.createElement('div');
+            certificateContent.className = 'certificate';
+
+            certificateContent.innerHTML = `
+                <div class="certificate-header">
+                    <h1>شهادة شكر وتقدير</h1>
+                </div>
+                <div class="certificate-body">
+                    <p>تُمنح هذه الشهادة إلى</p>
+                    <h2>${participant.name}</h2>
+                    <p>لمشاركته الفعالة في دورة</p>
+                    <h2>${course.name}</h2>
+                    <p>من تاريخ: ${formatDate(course.start)} إلى: ${formatDate(course.end)}</p>
+                </div>
+                <div class="footer">
+                    <span>التاريخ: ${formatDate(new Date().toISOString().split('T')[0])}</span>
+                    <span>الإدارة</span>
+                </div>
+            `;
+            div.appendChild(certificateContent);
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'certificate-actions';
+            actionsDiv.innerHTML = `
+                <button class="send-email-btn" onclick="sendCertificateEmail(${index})">إرسال الشهادة بالإيميل</button>
+                <button class="print-btn" onclick="printCertificate(${index})">طباعة الشهادة</button>
+            `;
+            div.appendChild(actionsDiv);
+
+            container.appendChild(div);
+        });
+    }
+
+    async function sendCertificateEmail(index) {
+        const participant = participantsData[index];
+        const course = courses[selectedCourseIndex];
+
+        if (!participant || !course) {
+            alert('خطأ: بيانات المتدرب أو الدورة غير متوفرة.');
+            return false;
+        }
+
+        let targetEmail = participant.email;
+
+        // Prompt for email if missing or invalid
+        if (!targetEmail || !validateEmail(targetEmail)) {
+            const emailPrompt = prompt(`الرجاء إدخال البريد الإلكتروني للمتدرب "${participant.name}" لإرسال الشهادة:`, targetEmail || '');
+            if (emailPrompt === null || !validateEmail(emailPrompt)) {
+                alert('تم إلغاء الإرسال أو البريد الإلكتروني المدخل غير صالح.');
+                return false;
+            }
+            targetEmail = emailPrompt;
+            participantsData[index].email = targetEmail; // Update the participant's email in the array
+            localStorage.setItem(`course_${selectedCourseIndex}_participants`, JSON.stringify(participantsData)); // Save updated email
+        }
+
+        const templateParams = {
+            to_name: participant.name,
+            to_email: targetEmail,
+            course_name: course.name,
+            start_date: formatDate(course.start),
+            end_date: formatDate(course.end),
+            issue_date: formatDate(new Date().toISOString().split('T')[0]),
+        };
+        
+        const serviceID = 'service_42kt09l';    
+        const templateID = 'template_g3rd0ao';  
+
+        try {
+            const response = await emailjs.send(serviceID, templateID, templateParams);
+            console.log('SUCCESS!', response.status, response.text);
+            return true;
+        } catch (error) {
+            console.log('FAILED...', error);
+            alert(`فشل إرسال الشهادة إلى ${participant.name}. الرجاء التحقق من الإعدادات والمحاولة مرة أخرى. خطأ: ${error.text || error}`);
+            return false;
+        }
+    }
+
+    async function sendAllCertificatesByEmail() {    
+        if (participantsData.length === 0) {        
+            alert('لا توجد شهادات لإرسالها. يرجى التأكد من اختيار الدورة وإضافة المتدربين أولاً.');        
+            return;    
+        }
+
+        const confirmed = confirm(`هل أنت متأكد من إرسال ${participantsData.length} شهادة عبر البريد الإلكتروني؟`);    
+        if (!confirmed) {        
+            return;    
+        }
+
+        let successCount = 0;    
+        let failCount = 0;    
+        const missingEmails = [];
+
+        const sendAllBtn = document.querySelector('.send-all-emails-btn');    
+        sendAllBtn.disabled = true;    
+        sendAllBtn.textContent = 'جاري الإرسال... الرجاء الانتظار';
+
+        for (let i = 0; i < participantsData.length; i++) {        
+            const participant = participantsData[i];        
+            const success = await sendCertificateEmail(i); // Use the individual send function        
+            if (success) {            
+                successCount++;        
+            } else {            
+                failCount++;            
+                // If sendCertificateEmail returns false due to invalid/missing email, it already handles prompting.
+                // We just count the failure here.
+                if (!participant.email || !validateEmail(participant.email)) {
+                    missingEmails.push(participant.name);
+                }
+            }
+            console.log(`تم إرسال ${successCount} / ${participantsData.length} شهادة.`);        
+        }
+
+        sendAllBtn.disabled = false;    
+        sendAllBtn.textContent = 'إرسال جميع الشهادات بالإيميل';
+
+        let resultMessage = `عملية إرسال الشهادات انتهت:\n`;    
+        resultMessage += `تم الإرسال بنجاح لـ ${successCount} متدرب.\n`;    
+        resultMessage += `فشل الإرسال لـ ${failCount} متدرب.\n`;
+
+        if (missingEmails.length > 0) {        
+            resultMessage += `\nلم يتم إرسال شهادات للمتدربين التالية أسمائهم بسبب عدم وجود بريد إلكتروني صالح أو إلغاء الإرسال:\n- ${missingEmails.join('\n- ')}\n`;        
+            resultMessage += `يمكنك إرسال شهاداتهم بشكل فردي لإدخال البريد الإلكتروني يدوياً.`;    
+        }
+        alert(resultMessage);    
+    }
+
+    function validateEmail(email) {    
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;    
+        return re.test(String(email).toLowerCase());    
+    }
+
+    function printCertificate(index) {    
+        const certificateElement = document.querySelectorAll('.certificate')[index];    
+        if (certificateElement) {        
+            const printWindow = window.open('', '', 'height=600,width=800');        
+            printWindow.document.write('<html><head><title>طباعة الشهادة</title>');        
+            printWindow.document.write('<style>');        
+            printWindow.document.write(`        
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; margin: 0; padding: 0; }        
+                .certificate {            
+                    width: 28cm; /* A4 width in landscape */            
+                    height: 19cm; /* A4 height in landscape */            
+                    border: 2px solid #333;            
+                    background: white;            
+                    margin: 1cm auto;            
+                    padding: 40px;            
+                    text-align: center;            
+                    position: relative;            
+                    box-sizing: border-box;            
+                    display: flex;            
+                    flex-direction: column;            
+                    justify-content: space-between;            
+                    overflow: hidden;        
+                }        
+                .certificate-header h1 { font-size: 3em; margin-bottom: 15px; color: #000; }        
+                .certificate-body { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 20px; }        
+                .certificate-body h2 { font-size: 2.8em; margin: 15px 0; color: #000; font-weight: bold; }        
+                .certificate-body p { font-size: 1.2em; margin: 8px 0; color: #000; }        
+                .footer {            
+                    position: relative;            
+                    bottom: 0;            
+                    left: 0;            
+                    right: 0;            
+                    display: flex;            
+                    justify-content: space-between;            
+                    font-size: 1.1em;            
+                    padding-top: 25px;            
+                    border-top: 1px dashed #000;            
+                    color: #000;        
+                }      
+            `);        
+            printWindow.document.write('</style></head><body>');        
+            printWindow.document.write(certificateElement.outerHTML);        
+            printWindow.document.write('</body></html>');        
+            printWindow.document.close();        
+            printWindow.focus();        
+            printWindow.print();    
+        }    
+    }
+
+    function formatDate(dateStr) {    
+        if (!dateStr) return '';    
+        const d = new Date(dateStr);    
+        if (isNaN(d)) return dateStr;    
+        return d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });    
+    }
+
+    function exportCertificatesZip() {    
+        if (participantsData.length === 0) {        
+            alert('لا توجد شهادات لتصديرها. يرجى التأكد من اختيار الدورة وإضافة المتدربين أولاً.');        
+            return;    
+        }
+
+        const course = courses[selectedCourseIndex];    
+        if (!course) {        
+            alert('يرجى اختيار دورة صحيحة.');        
+            return;
+        }
+
+        const zip = new JSZip();
+
+        participantsData.forEach(participant => {        
+            const certificateHtml = `        
+                <!DOCTYPE html>        
+                <html lang="ar">        
+                <head>            
+                    <meta charset="UTF-8">            
+                    <title>شهادة - ${participant.name}</title>            
+                    <style>                
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f4f7f6; }                
+                        .certificate {                    
+                            width: 850px;                    
+                            height: 550px;                    
+                            border: 5px solid #333;                    
+                            background: white;                    
+                            padding: 40px;                    
+                            text-align: center;                    
+                            position: relative;                    
+                            box-sizing: border-box;                    
+                            display: flex;                    
+                            flex-direction: column;                    
+                            justify-content: space-between;                    
+                            box-shadow: 0 8px 20px rgba(0,0,0,0.1);                
+                        }                
+                        .certificate-header h1 { font-size: 3em; margin-bottom: 15px; color: #007bff; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }                
+                        .certificate-body { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 20px; }                
+                        .certificate-body h2 { font-size: 2.8em; margin: 15px 0; color: #d9534f; font-weight: bold; }                
+                        .certificate-body p { font-size: 1.2em; margin: 8px 0; }                
+                        .footer {                    
+                            position: relative;                    
+                            bottom: 0;                    
+                            left: 0;                    
+                            right: 0;                    
+                            display: flex;                    
+                            justify-content: space-between;                    
+                            font-size: 1.1em;                    
+                            padding-top: 25px;                    
+                            border-top: 1px dashed #ccc;                    
+                            color: #555;                
+                        }            
+                    </style>        
+                </head>        
+                <body>            
+                    <div class="certificate">                
+                        <div class="certificate-header">                    
+                            <h1>شهادة شكر وتقدير</h1>                
+                        </div>                
+                        <div class="certificate-body">                    
+                            <p>تُمنح هذه الشهادة إلى</p>                    
+                            <h2>${participant.name}</h2>                    
+                            <p>لمشاركته الفعالة في دورة</p>                    
+                            <h2>${course.name}</h2>                    
+                            <p>من تاريخ: ${formatDate(course.start)} إلى: ${formatDate(course.end)}</p>                
+                        </div>                
+                        <div class="footer">                    
+                            <span>التاريخ: ${formatDate(new Date().toISOString().split('T')[0])}</span>                    
+                            <span>الإدارة</span>                
+                        </div>            
+                    </div>        
+                </body>        
+                </html>      
+            `;        
+            zip.file(`${participant.name}.html`, certificateHtml);    
+        });
+
+        zip.generateAsync({type:"blob"}).then(function(content) {        
+            saveAs(content, `${course.name}_شهادات.zip`);    
+        });    
+    }
+
+    // Local Storage Functions
+    function saveData() {
+        localStorage.setItem('courses', JSON.stringify(courses));
+        // Participants data for each course is saved when participants are "saved" for that course
+    }
+
+    function loadData() {
+        const savedCourses = localStorage.getItem('courses');
+        if (savedCourses) {
+            courses = JSON.parse(savedCourses);
+        }
+    }
+
+    // Initial load when script runs
+    loadData();
+    populateCourseSelect();
+    renderCoursesTable();
 </script>
 </body>
 </html>
